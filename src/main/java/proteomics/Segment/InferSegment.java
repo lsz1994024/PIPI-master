@@ -131,6 +131,21 @@ public class InferSegment {
         }
     }
 
+    public SparseBooleanVector generateSegmentIntensityVectorSBV(List<ThreeExpAA> inputList) {
+        SparseBooleanVector finalVector = new SparseBooleanVector();
+        if (inputList.isEmpty()) {
+            return finalVector;
+        } else {
+            for (ThreeExpAA expAaList : inputList) {
+                double totalIntensity = expAaList.getTotalIntensity();
+                int idx = aaVectorTemplate.get(new Segment(expAaList.getPtmFreeAAString()));
+                double value = Math.max(totalIntensity, finalVector.get(idx));
+                finalVector.put(idx, value);
+            }
+            return finalVector;
+        }
+    }
+
     public SparseBooleanVector generateSegmentBooleanVector(String peptide) {
         String normalizedPeptide = normalizeSequence(peptide);
         Set<Integer> tempSet = new HashSet<>(peptide.length() + 1, 1);

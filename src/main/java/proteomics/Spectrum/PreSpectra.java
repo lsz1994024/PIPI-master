@@ -19,7 +19,7 @@ import java.util.*;
 public class PreSpectra {
 
     private static final Logger logger = LoggerFactory.getLogger(PreSpectra.class);
-    public static final int topN = 6;
+    public static final int topN = 9;
 
     private final IsotopeDistribution isotopeDistribution;
 

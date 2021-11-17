@@ -15,7 +15,7 @@ public class Search {
     private List<Peptide> ptmFreeResult = new LinkedList<>();
 
 
-    public Search(BuildIndex buildIndex, double precursorMass, SparseBooleanVector scanCode, MassTool massTool, double ms1Tolerance, double leftInverseMs1Tolerance, double rightInverseMs1Tolerance, int ms1ToleranceUnit, double minPtmMass, double maxPtmMass, int localMaxMs2Charge) {
+    public Search(BuildIndex buildIndex, double precursorMass, int scanNum, SparseBooleanVector scanCode, MassTool massTool, double ms1Tolerance, double leftInverseMs1Tolerance, double rightInverseMs1Tolerance, int ms1ToleranceUnit, double minPtmMass, double maxPtmMass, int localMaxMs2Charge) {
         PriorityQueue<ResultEntry> ptmFreeQueue = new PriorityQueue<>(rankNum * 2);
         PriorityQueue<ResultEntry> ptmOnlyQueue = new PriorityQueue<>(rankNum * 2);
         double scanNormSquare = scanCode.norm2square();
@@ -45,6 +45,11 @@ public class Search {
                     double temp1 = Math.sqrt(peptide0.code.norm2square() * scanNormSquare);
                     if (temp1 > 1e-6) {
                         score = peptide0.code.dot(scanCode) / temp1;
+//                        if (scanNum == 2132 && sequence.equals("nHPTTPSSTAKc")){
+//                            System.out.println("in score 2132 " + score);
+//                            System.out.println("pep "+ peptide0.code);
+//                            System.out.println("scan "+ scanCode.sparseVector);
+//                        }
                     }
                     double deltaMass = mass - precursorMass; // caution: the order matters under ms1ToleranceUnit == 1 situation
 

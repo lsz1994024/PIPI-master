@@ -130,6 +130,18 @@ public class PIPI {
         MassTool massTool = buildIndex.returnMassTool();
         InferPTM inferPTM = buildIndex.getInferPTM();
 
+        BufferedReader parameterReader = new BufferedReader(new FileReader("/home/slaiad/Data/Simulation_Data/simulation_1/Truth.txt"));
+        Map<Integer, String> pepTruth = new HashMap<>();
+        Map<Integer, Boolean> modTruth = new HashMap<>();
+        String line;
+        while ((line = parameterReader.readLine()) != null) {
+            line = line.trim();
+            String[] splitRes = line.split(",");
+            pepTruth.put(Integer.valueOf(splitRes[0]), splitRes[1]);
+            modTruth.put(Integer.valueOf(splitRes[0]), Boolean.valueOf(Integer.valueOf(splitRes[3]) == 1));
+        }
+        logger.info("Truth Loaded");
+
         logger.info("Reading spectra...");
         File spectraFile = new File(spectraPath);
         if ((!spectraFile.exists() || (spectraFile.isDirectory()))) {
@@ -164,14 +176,15 @@ public class PIPI {
         ArrayList<Future<PIPIWrap.Entry>> taskList = new ArrayList<>(preSpectra.getUsefulSpectraNum() + 10);
         Connection sqlConnection = DriverManager.getConnection(sqlPath);
         Statement sqlStatement = sqlConnection.createStatement();
-        ResultSet sqlResultSet = sqlStatement.executeQuery("SELECT scanId, precursorCharge, precursorMass FROM spectraTable");
+        ResultSet sqlResultSet = sqlStatement.executeQuery("SELECT scanId, precursorCharge, precursorMass, scanNum FROM spectraTable");
         ReentrantLock lock = new ReentrantLock();
         Binomial binomial = new Binomial(Integer.valueOf(parameterMap.get("max_peptide_length")) * 2);
         while (sqlResultSet.next()) {
             String scanId = sqlResultSet.getString("scanId");
+            int scanNum = sqlResultSet.getInt("scanNum");
             int precursorCharge = sqlResultSet.getInt("precursorCharge");
             double precursorMass = sqlResultSet.getDouble("precursorMass");
-            taskList.add(threadPool.submit(new PIPIWrap(buildIndex, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, ms2Tolerance, inferPTM.getMinPtmMass(), inferPTM.getMaxPtmMass(), Math.min(precursorCharge > 1 ? precursorCharge - 1 : 1, 3), spectraParser, minClear, maxClear, lock, scanId, precursorCharge, precursorMass, inferPTM, preSpectrum, sqlPath, binomial)));
+            taskList.add(threadPool.submit(new PIPIWrap(buildIndex, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, ms2Tolerance, inferPTM.getMinPtmMass(), inferPTM.getMaxPtmMass(), Math.min(precursorCharge > 1 ? precursorCharge - 1 : 1, 3), spectraParser, minClear, maxClear, lock, scanId, scanNum, precursorCharge, precursorMass, inferPTM, preSpectrum, sqlPath, binomial, pepTruth.get(scanNum), modTruth.get(scanNum))));
         }
         sqlResultSet.close();
         sqlStatement.close();

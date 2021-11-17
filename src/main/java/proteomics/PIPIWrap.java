@@ -15,6 +15,7 @@ import proteomics.Types.*;
 import uk.ac.ebi.pride.tools.jmzreader.JMzReader;
 
 import java.sql.*;
+import java.text.DecimalFormat;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.locks.ReentrantLock;
@@ -43,9 +44,11 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
     private final PrepareSpectrum preSpectrum;
     private final String sqlPath;
     private final Binomial binomial;
+    private final String pepTruth;
+    private final Boolean modTruth;
+    private final int scanNum;
 
-
-    public PIPIWrap(BuildIndex buildIndex, MassTool massTool, double ms1Tolerance, double leftInverseMs1Tolerance, double rightInverseMs1Tolerance, int ms1ToleranceUnit, double ms2Tolerance, double minPtmMass, double maxPtmMass, int localMaxMs2Charge, JMzReader spectraParser, double minClear, double maxClear, ReentrantLock lock, String scanId, int precursorCharge, double precursorMass, InferPTM inferPTM, PrepareSpectrum preSpectrum, String sqlPath, Binomial binomial) {
+    public PIPIWrap(BuildIndex buildIndex, MassTool massTool, double ms1Tolerance, double leftInverseMs1Tolerance, double rightInverseMs1Tolerance, int ms1ToleranceUnit, double ms2Tolerance, double minPtmMass, double maxPtmMass, int localMaxMs2Charge, JMzReader spectraParser, double minClear, double maxClear, ReentrantLock lock, String scanId, int scanNum, int precursorCharge, double precursorMass, InferPTM inferPTM, PrepareSpectrum preSpectrum, String sqlPath, Binomial binomial, String pepTruth, Boolean modTruth) {
         this.buildIndex = buildIndex;
         this.massTool = massTool;
         this.ms1Tolerance = ms1Tolerance;
@@ -68,6 +71,9 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
         this.sqlPath = sqlPath;
         this.binomial = binomial;
         peptide0Map = buildIndex.getPeptide0Map();
+        this.pepTruth = pepTruth;
+        this.modTruth = modTruth;
+        this.scanNum = scanNum;
     }
 
     @Override
@@ -92,10 +98,44 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
         InferSegment inferSegment = buildIndex.getInferSegment();
         List<ThreeExpAA> expAaLists = inferSegment.inferSegmentLocationFromSpectrum(precursorMass, plMap);
         if (!expAaLists.isEmpty()) {
-            SparseBooleanVector scanCode = inferSegment.generateSegmentIntensityVector(expAaLists);
+            SparseBooleanVector scanCode = inferSegment.generateSegmentIntensityVectorSBV(expAaLists);
 
             // Begin search.
-            Search search = new Search(buildIndex, precursorMass, scanCode, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge);
+            Search search = new Search(buildIndex, precursorMass, scanNum, scanCode, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge);
+            if (true){
+//                for (ThreeExpAA tag : expAaLists){
+//
+//                    System.out.println("tags "+tag.getPtmFreeAAString());
+//                }
+                List<Peptide> ptmOnlySeqs = search.getPTMOnlyResult();
+                List<Peptide> ptmFreeSeqs = search.getPTMFreeResult();
+                String bestSeq = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getPTMFreePeptide();
+                double bestScore = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getNormalizedCrossCorr();
+                if (ptmFreeSeqs.size() > 0){
+                    double ptmFreeScore = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getNormalizedCrossCorr();
+//                    System.out.println(ptmFreeScore +" " + bestScore);
+                    if (ptmFreeScore >= bestScore){
+                        bestSeq = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getPTMFreePeptide();
+                    }
+                }
+//                    System.out.println(scanNum + " top1");
+//                    System.out.println(bestSeq);
+//                    System.out.println(pepTruth);
+                if ((bestSeq.substring(1,bestSeq.length()-1).replace("L","I")).equals(pepTruth.replace("L","I"))){
+                    System.out.println(scanNum + " top1");
+//                    System.out.println(bestSeq);
+//                    System.out.println(pepTruth);
+                }
+
+            }
+
+
+
+
+
+
+
+
 
             // prepare the spectrum
             SparseBooleanVector expProcessedPL;
