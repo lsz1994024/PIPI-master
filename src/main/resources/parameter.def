@@ -1,18 +1,17 @@
 # 1.4.6
 # First line is the parameter file version. Don't change it.
-thread_num = 12 # Thread number. Set to 0 to using all the CPU resources in the computer.
-percolator_path = C:\Program Files\percolator-v3-05\bin\percolator.exe # Please input absolute path of Percolator binary file.
+thread_num = 40 # Thread number. Set to 0 to using all the CPU resources in the computer.
+percolator_path = /usr/bin/percolator # Please input absolute path of Percolator binary file.
 
 # Database
 #db = D:\PIPI-master\src\main\resources\uniprot_homo_sapiens.fasta
-db = D:\PIPI-master\src\main\resources\uniprot_homo_canonical_isoform.fasta
+db = /home/slaiad/Data/Simulation_Data/simulation_1/02A.pin.selected_psm.fasta
 
-database_type = UniProt # Different types have different fasta header patterns. Available values: UniProt, SwissProt, TAIR, ITAG, RefSeq, Others
+database_type = Others # Different types have different fasta header patterns. Available values: UniProt, SwissProt, TAIR, ITAG, RefSeq, Others
 add_decoy = 1 # 0 = don't generate and search decoy sequences automatically; 1 = generate and search decoy sequences
-add_contaminant = 1 # 0 = don't add contaminant proteins automatically; 1 = add contaminant proteins
-missed_cleavage = 2 # Maximum number of allowed missed cleavage.
+add_contaminant = 0 # 0 = don't add contaminant proteins automatically; 1 = add contaminant proteins
+missed_cleavage = 0 # Maximum number of allowed missed cleavage.
 min_peptide_length = 7 # Minimum length of a peptide chain.
-#max_peptide_length = 50
 max_peptide_length = 50 # Maximum length of a peptide chain.
 
 # Spectrum
@@ -27,8 +26,8 @@ min_clear_mz = 112.5 # Clear out all peaks in the specified m/z range, mainly fo
 max_clear_mz = 121.5
 
 # Modification related
-min_ptm_mass = -500 # Min allowed PTM mass. will change in the program
-max_ptm_mass = 500 # Max allowed PTM mass.
+min_ptm_mass = -250 # Min allowed PTM mass. will change in the program
+max_ptm_mass = 250 # Max allowed PTM mass.
 
 # Isotopic labelling strategy
 15N = 0 # 1: 15N. 0: 14N.
