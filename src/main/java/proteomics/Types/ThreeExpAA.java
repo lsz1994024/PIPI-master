@@ -8,9 +8,13 @@ public class ThreeExpAA implements Comparable<ThreeExpAA> {
     private final double totalIntensity;
     private final String ptmFreeAAString;
     private int regionIdx;
+    private float[] peakLocations;
+    private float[] intensities;
 
     public ThreeExpAA(ExpAA aa1, ExpAA aa2, ExpAA aa3) {
         threeExpAa = new ExpAA[]{aa1, aa2, aa3};
+        peakLocations = new float[]{(float) aa1.getHeadLocation(), (float) aa2.getHeadLocation(), (float) aa3.getHeadLocation(), (float) aa3.getTailLocation()};
+        intensities = new float[]{(float) aa1.getHeadIntensity(), (float) aa2.getHeadIntensity(), (float) aa3.getHeadIntensity(), (float) aa3.getTailIntensity()};
         String toString = threeExpAa[0].toString() + "-" + threeExpAa[1].toString() + "-" + threeExpAa[2].toString();
         hashCode = toString.hashCode();
 
@@ -26,7 +30,7 @@ public class ThreeExpAA implements Comparable<ThreeExpAA> {
         }
         totalIntensity = intensity;
     }
-
+    public String join(ThreeExpAA other) { return ptmFreeAAString + other.getPtmFreeAAString();    }
     public int hashCode() {
         return hashCode;
     }
@@ -49,6 +53,27 @@ public class ThreeExpAA implements Comparable<ThreeExpAA> {
         // update toString and hashCode
         String toString = threeExpAa[0].toString() + "-" + threeExpAa[1].toString() + "-" + threeExpAa[2].toString();
         hashCode = toString.hashCode();
+    }
+
+    private int connects(ThreeExpAA other) {
+        int res = -1;
+        if (this.threeExpAa[2].getTailLocation() == other.threeExpAa[0].getHeadLocation()) { res = 1;}
+        if (this.threeExpAa[1].getTailLocation() == other.threeExpAa[0].getHeadLocation() && this.threeExpAa[2].getTailLocation() == other.threeExpAa[1].getHeadLocation()) { res = 2;}
+        if (this.threeExpAa[0].getTailLocation() == other.threeExpAa[0].getHeadLocation() && this.threeExpAa[1].getTailLocation() == other.threeExpAa[1].getHeadLocation() && this.threeExpAa[2].getTailLocation() == other.threeExpAa[2].getHeadLocation()) { res = 3;}
+        return res;
+    }
+
+    public float connectScore(ThreeExpAA other) {
+        float res = 0;
+        int connect = this.connects(other);
+        if (connect != -1){
+            for (int i = 0; i < connect; i++){
+                res += other.intensities[i];
+            }
+        } else {
+            res = -1;
+        }
+        return res;
     }
 
     public int compareTo(ThreeExpAA other) {

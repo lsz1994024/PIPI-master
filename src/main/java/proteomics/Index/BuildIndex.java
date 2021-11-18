@@ -181,11 +181,15 @@ public class BuildIndex {
         for (String peptide : peptideMassMap.keySet()) {
             SparseBooleanVector code = null;
             if (needCoding) {
-                code = inferSegment.generateSegmentBooleanVector(DbTool.getSequenceOnly(peptide));
+                code = inferSegment.generateTheoSegMat(DbTool.getSequenceOnly(peptide));
+                if (peptide.equals("nLLVDVDESTLSPEEQKc")){
+                    System.out.println("Theo code");
+                }
             }
 
             Character[] leftRightFlank = DbTool.getLeftRightFlank(peptide, peptideProteinMap, targetDecoyProteinSequenceMap, parameterMap.get("cleavage_site_1"), parameterMap.get("protection_site_1"), parameterMap.get("is_from_C_term_1").contentEquals("1")); // FixMe: Only consider the first enzyme if the users specify two enzymes.
             if (leftRightFlank != null) {
+
                 tempMap.put(peptide, new Peptide0(code, isTarget(peptideProteinMap.get(peptide)), peptideProteinMap.get(peptide).toArray(new String[0]), leftRightFlank[0], leftRightFlank[1]));
 
                 if (massPeptideMap.containsKey(peptideMassMap.get(peptide))) {

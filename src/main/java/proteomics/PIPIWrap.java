@@ -96,17 +96,20 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
 
         // Coding
         InferSegment inferSegment = buildIndex.getInferSegment();
+        if (scanNum==48841) {
+            System.out.print("Exp 48841");
+        }
         List<ThreeExpAA> expAaLists = inferSegment.inferSegmentLocationFromSpectrum(precursorMass, plMap);
         if (!expAaLists.isEmpty()) {
-            SparseBooleanVector scanCode = inferSegment.generateSegmentIntensityVectorSBV(expAaLists);
+            SparseBooleanVector scanCode = inferSegment.generateExpSegMat(expAaLists);
+
 
             // Begin search.
             Search search = new Search(buildIndex, precursorMass, scanNum, scanCode, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge);
-            if (true){
-//                for (ThreeExpAA tag : expAaLists){
-//
-//                    System.out.println("tags "+tag.getPtmFreeAAString());
-//                }
+            if (scanNum==48841){ //scanNum==48841
+                for (ThreeExpAA tag : expAaLists){
+                    System.out.println("tags "+tag.getPtmFreeAAString());
+                }
                 List<Peptide> ptmOnlySeqs = search.getPTMOnlyResult();
                 List<Peptide> ptmFreeSeqs = search.getPTMFreeResult();
                 String bestSeq = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getPTMFreePeptide();
@@ -118,9 +121,9 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
                         bestSeq = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getPTMFreePeptide();
                     }
                 }
-//                    System.out.println(scanNum + " top1");
-//                    System.out.println(bestSeq);
-//                    System.out.println(pepTruth);
+//                System.out.println(scanNum + " top1");
+//                System.out.println(bestSeq);
+//                System.out.println(pepTruth);
                 if ((bestSeq.substring(1,bestSeq.length()-1).replace("L","I")).equals(pepTruth.replace("L","I"))){
                     System.out.println(scanNum + " top1");
 //                    System.out.println(bestSeq);

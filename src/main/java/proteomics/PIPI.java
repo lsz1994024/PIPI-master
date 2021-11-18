@@ -180,8 +180,9 @@ public class PIPI {
         ReentrantLock lock = new ReentrantLock();
         Binomial binomial = new Binomial(Integer.valueOf(parameterMap.get("max_peptide_length")) * 2);
         while (sqlResultSet.next()) {
-            String scanId = sqlResultSet.getString("scanId");
             int scanNum = sqlResultSet.getInt("scanNum");
+            if (scanNum != 48841){continue;}
+            String scanId = sqlResultSet.getString("scanId");
             int precursorCharge = sqlResultSet.getInt("precursorCharge");
             double precursorMass = sqlResultSet.getDouble("precursorMass");
             taskList.add(threadPool.submit(new PIPIWrap(buildIndex, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, ms2Tolerance, inferPTM.getMinPtmMass(), inferPTM.getMaxPtmMass(), Math.min(precursorCharge > 1 ? precursorCharge - 1 : 1, 3), spectraParser, minClear, maxClear, lock, scanId, scanNum, precursorCharge, precursorMass, inferPTM, preSpectrum, sqlPath, binomial, pepTruth.get(scanNum), modTruth.get(scanNum))));

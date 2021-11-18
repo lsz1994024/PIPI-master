@@ -18,12 +18,14 @@ public class InferSegment {
 
     private final double ms2Tolerance;
     private TreeMap<Segment, Integer> aaVectorTemplate = new TreeMap<>();
+    private TreeMap<Segment, Integer> aaConDB = new TreeMap<>();
     private Map<Double, String> modifiedAAMap = new HashMap<>(35, 1);
     private final Double[] deltaMassArray;
     private Map<String, Double> modifiedAAMassMap = new HashMap<>(35, 1);
     private double[] nTermPossibleMod = null;
     private double[] cTermPossibleMod = null;
     private MassTool massTool;
+    private Set<String> theoTag3Str = new HashSet<>();
 
     public InferSegment(MassTool massTool, Map<String, String> parameterMap, Map<Character, Double> fixModMap) throws Exception {
         this.massTool = massTool;
@@ -47,6 +49,28 @@ public class InferSegment {
         for (char aa1 : aaArray) {
             for (char aa2 : aaArray) {
                 for (char aa3 : aaArray) {
+                    theoTag3Str.add(String.format(Locale.US, "%c%c%c", aa1, aa2, aa3));
+                }
+            }
+        }
+
+        for (String tag1 : theoTag3Str) {
+            Segment tag1_seg = new Segment(tag1, false);
+            if (!aaConDB.containsKey(tag1_seg)) {
+                aaConDB.put(tag1_seg, 0);
+            }
+            for (String tag2 : theoTag3Str) {
+                String tag_tag = tag1+tag2;
+                Segment tag_tag_seg = new Segment(tag_tag, false);
+                if (!aaConDB.containsKey(tag_tag_seg)) {
+                    aaConDB.put(tag_tag_seg, 0);
+                }
+            }
+        }
+
+        for (char aa1 : aaArray) {
+            for (char aa2 : aaArray) {
+                for (char aa3 : aaArray) {
                     aaVectorTemplate.put(new Segment(String.format(Locale.US, "%c%c%c", aa1, aa2, aa3)), 0);
                 }
             }
@@ -58,9 +82,17 @@ public class InferSegment {
             ++idx;
         }
 
+
+        idx = 0;
+        for (Segment segment : aaConDB.keySet()) {
+            aaConDB.put(segment, idx);
+            ++idx;
+        }
+
         // generate a mass aa map containing modified amino acid
         for (double k : massAaMap.keySet()) {
             modifiedAAMap.put(k, massAaMap.get(k).toString());
+//            System.out.println(k +" "+ massAaMap.get(k).toString());
         }
         for (String k : parameterMap.keySet()) {
             if (k.startsWith("mod")) {
@@ -144,6 +176,115 @@ public class InferSegment {
             }
             return finalVector;
         }
+    }
+
+    public SparseBooleanVector generateExpSegMat(List<ThreeExpAA> inputList) {
+        SparseBooleanVector finalVector = new SparseBooleanVector();
+        if (!inputList.isEmpty()) {
+            int idx = 0;
+            for (ThreeExpAA tag1 : inputList) {
+                idx = aaConDB.get(new Segment(tag1.getPtmFreeAAString(), false));
+                float tag1Score = 0;
+                boolean isNCtag = false;
+                if (Math.abs(tag1.getHeadLocation() - massTool.PROTON) <= ms2Tolerance
+                        ||Math.abs(tag1.getHeadLocation() - massTool.PROTON - massTool.H2O) <= ms2Tolerance ){
+                    tag1Score = (float) (2.3*tag1.getTotalIntensity());
+                    isNCtag = true;
+                } else {
+                    tag1Score = (float) (1*tag1.getTotalIntensity());
+                }
+
+                finalVector.put(idx, Math.max(tag1Score, finalVector.get(idx)));
+                for (ThreeExpAA tag2 : inputList) {
+                    float connectScore = tag1.connectScore(tag2);
+                    if (connectScore == -1) {
+                        continue;
+                    }
+//                    System.out.print(tag1 + "+"+tag2+"+"+connectScore+"+"+"      ");
+                    float tag2Score = 0;
+                    if (isNCtag) {
+                        tag2Score = (3*connectScore);
+                    } else {
+                        tag2Score = 1*connectScore;
+                    }
+                    idx = aaConDB.get(new Segment(tag1.join(tag2), false)); // use the idx of tag string to represent tag
+                    finalVector.put(idx, (float) (1.5*Math.max(tag2Score, finalVector.get(idx))));
+                    double a = 1.5*Math.max(tag2Score, finalVector.get(idx));
+                    a = 1.2;
+                }
+            }
+        }
+        return finalVector;
+    }
+
+    public SparseBooleanVector generateTheoSegMat(String peptide) throws Exception {
+        TreeMap<Double, Double> theoPeakMap = generateTheoPeak(peptide);
+        List<ThreeExpAA> theoTags = inferThreeAAFromSpectrum(theoPeakMap, calResMass(peptide) + MassTool.PROTON);
+        if (peptide.equals("LLVDVDESTLSPEEQK")){
+            System.out.println("Thoe tags");
+        }
+        SparseBooleanVector finalVector = new SparseBooleanVector();
+        if (!theoTags.isEmpty()) {
+            int idx = 0;
+            for (ThreeExpAA tag1 : theoTags) {
+                idx = aaConDB.get(new Segment(tag1.getPtmFreeAAString(), false));
+                finalVector.put(idx, 1);
+                for (ThreeExpAA tag2 : theoTags) {
+                    float connectScore = tag1.connectScore(tag2);
+                    float localScore = 0;
+                    if (connectScore == -1) {
+                        continue;
+                    } else if (connectScore == 3){
+                        localScore = (float) 1.0;
+                    } else if (connectScore == 2){
+                        localScore = (float) 0.8;
+                    } else if (connectScore == 1) {
+                        localScore = (float) 0.4;
+                    }
+                    System.out.print("HERE local");
+                    idx = aaConDB.get(new Segment(tag1.join(tag2), false)); // use the idx of tag string to represent tag
+                    finalVector.put(idx, (float) (1*Math.max(localScore, finalVector.get(idx))));
+                }
+            }
+        }
+        return finalVector;
+
+
+    }
+
+    public Double calResMass(String seq){ // Caution: nterm mod is not included!
+        Double totalMass = 0.0;
+        int length = seq.length();
+        for (int idx = 0; idx < length; ++idx) {
+//            if (! massTool.getMassTable().containsKey(seq.substring(idx, idx + 1)))
+//            {
+//                System.out.println(seq+" "+seq.substring(idx, idx + 1));
+//            }
+            totalMass += massTool.getMassTable().get(seq.charAt(idx));
+        }
+
+        return totalMass;
+    }
+
+    public TreeMap<Double, Double> generateTheoPeak(String pep){
+        String peptide = normalizeSequence(pep);
+        TreeMap<Double, Double> peakList = new TreeMap<>();
+        int pepLen = peptide.length();
+        Double intes = 1.0;
+        for (int i = 1; i <= pepLen - 1; i++){
+            String bIon = peptide.substring(0, i);
+            Double bMass = calResMass(bIon);
+            peakList.put(bMass, intes);
+
+            String yIon = peptide.substring(i); // to the end
+            Double yMass = calResMass(yIon) + massTool.H2O;
+            peakList.put(yMass, intes);
+        }
+        peakList.put(calResMass(peptide), intes);
+        peakList.put(massTool.H2O, intes);
+        peakList.put(0.0, intes);
+//        peakList.put(calResMass(peptide) - massTable.get("H2O"), intes);
+        return peakList;
     }
 
     public SparseBooleanVector generateSegmentBooleanVector(String peptide) {
