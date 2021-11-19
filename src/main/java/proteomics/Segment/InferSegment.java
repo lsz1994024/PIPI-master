@@ -209,8 +209,6 @@ public class InferSegment {
                     }
                     idx = aaConDB.get(new Segment(tag1.join(tag2), false)); // use the idx of tag string to represent tag
                     finalVector.put(idx, (float) (1.5*Math.max(tag2Score, finalVector.get(idx))));
-                    double a = 1.5*Math.max(tag2Score, finalVector.get(idx));
-                    a = 1.2;
                 }
             }
         }
@@ -220,7 +218,7 @@ public class InferSegment {
     public SparseBooleanVector generateTheoSegMat(String peptide) throws Exception {
         TreeMap<Double, Double> theoPeakMap = generateTheoPeak(peptide);
         List<ThreeExpAA> theoTags = inferThreeAAFromSpectrum(theoPeakMap, calResMass(peptide) + MassTool.PROTON);
-        if (peptide.equals("LLVDVDESTLSPEEQK")){
+        if (peptide.equals("HVGYKPSDEHK")){
             System.out.println("Thoe tags");
         }
         SparseBooleanVector finalVector = new SparseBooleanVector();
@@ -241,7 +239,7 @@ public class InferSegment {
                     } else if (connectScore == 1) {
                         localScore = (float) 0.4;
                     }
-                    System.out.print("HERE local");
+//                    System.out.print("HERE local");
                     idx = aaConDB.get(new Segment(tag1.join(tag2), false)); // use the idx of tag string to represent tag
                     finalVector.put(idx, (float) (1*Math.max(localScore, finalVector.get(idx))));
                 }

@@ -181,7 +181,7 @@ public class PIPI {
         Binomial binomial = new Binomial(Integer.valueOf(parameterMap.get("max_peptide_length")) * 2);
         while (sqlResultSet.next()) {
             int scanNum = sqlResultSet.getInt("scanNum");
-            if (scanNum != 48841){continue;}
+//            if (scanNum != 48841){continue;}
             String scanId = sqlResultSet.getString("scanId");
             int precursorCharge = sqlResultSet.getInt("precursorCharge");
             double precursorMass = sqlResultSet.getDouble("precursorMass");

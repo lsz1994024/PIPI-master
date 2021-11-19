@@ -96,19 +96,30 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
 
         // Coding
         InferSegment inferSegment = buildIndex.getInferSegment();
-        if (scanNum==48841) {
-            System.out.print("Exp 48841");
-        }
+//        if (scanNum==12460) {
+//            System.out.print("Exp 48841");
+//        }
         List<ThreeExpAA> expAaLists = inferSegment.inferSegmentLocationFromSpectrum(precursorMass, plMap);
         if (!expAaLists.isEmpty()) {
             SparseBooleanVector scanCode = inferSegment.generateExpSegMat(expAaLists);
-
+//            for (ThreeExpAA tag : expAaLists){
+////                if ("SVSWINK".contains(tag.getPtmFreeAAString())){
+//                System.out.println(tag.getPtmFreeAAString());
+////                }
+//            }
 
             // Begin search.
-            Search search = new Search(buildIndex, precursorMass, scanNum, scanCode, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge);
-            if (scanNum==48841){ //scanNum==48841
+            Search search = new Search(buildIndex, precursorMass, scanNum, scanCode, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge, pepTruth);
+            if (scanNum==2077){ //scanNum==48841 #true
+//                for (ThreeExpAA tag : expAaLists){
+//                    System.out.println("tags "+tag.getPtmFreeAAString());
+//                }
                 for (ThreeExpAA tag : expAaLists){
-                    System.out.println("tags "+tag.getPtmFreeAAString());
+                    if (pepTruth.contains(tag.getPtmFreeAAString()) || pepTruth.contains(new StringBuilder(tag.getPtmFreeAAString()).reverse().toString())){
+                        System.out.println("contains "+tag.getPtmFreeAAString());
+                    } else {
+                        System.out.println("wrong "+tag.getPtmFreeAAString());
+                    }
                 }
                 List<Peptide> ptmOnlySeqs = search.getPTMOnlyResult();
                 List<Peptide> ptmFreeSeqs = search.getPTMFreeResult();
@@ -119,13 +130,14 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
 //                    System.out.println(ptmFreeScore +" " + bestScore);
                     if (ptmFreeScore >= bestScore){
                         bestSeq = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getPTMFreePeptide();
+                        bestScore = ptmFreeScore;
                     }
                 }
-//                System.out.println(scanNum + " top1");
+                System.out.println(scanNum + " top1 " + bestSeq + ": "+bestScore + " truth " + pepTruth + ": "+ search.getTruthScore());
 //                System.out.println(bestSeq);
 //                System.out.println(pepTruth);
                 if ((bestSeq.substring(1,bestSeq.length()-1).replace("L","I")).equals(pepTruth.replace("L","I"))){
-                    System.out.println(scanNum + " top1");
+                    System.out.println(scanNum + " yes");
 //                    System.out.println(bestSeq);
 //                    System.out.println(pepTruth);
                 }
