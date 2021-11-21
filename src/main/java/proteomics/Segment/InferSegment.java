@@ -309,7 +309,7 @@ public class InferSegment {
         return seq.replaceAll("[IL]", "#");
     }
 
-    private List<ThreeExpAA> inferThreeAAFromSpectrum(TreeMap<Double, Double> plMap, double cTermMz) throws Exception {
+    public List<ThreeExpAA> inferThreeAAFromSpectrum(TreeMap<Double, Double> plMap, double cTermMz) throws Exception {
         Double[] mzArray = plMap.keySet().toArray(new Double[0]);
         Double[] intensityArray = plMap.values().toArray(new Double[0]);
         Set<ThreeExpAA> tempSet = new HashSet<>();

@@ -102,6 +102,7 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
         List<ThreeExpAA> expAaLists = inferSegment.inferSegmentLocationFromSpectrum(precursorMass, plMap);
         if (!expAaLists.isEmpty()) {
             SparseBooleanVector scanCode = inferSegment.generateExpSegMat(expAaLists);
+            SparseBooleanVector scanCode3 = inferSegment.generateSegmentIntensityVectorSBV(expAaLists);
 //            for (ThreeExpAA tag : expAaLists){
 ////                if ("SVSWINK".contains(tag.getPtmFreeAAString())){
 //                System.out.println(tag.getPtmFreeAAString());
@@ -109,18 +110,12 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
 //            }
 
             // Begin search.
-            Search search = new Search(buildIndex, precursorMass, scanNum, scanCode, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge, pepTruth);
-            if (scanNum==2077){ //scanNum==48841 #true
+            Search search = new Search(buildIndex, precursorMass, scanNum, scanCode,scanCode3, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge, pepTruth);
+//            if (true){ //scanNum==48841 #true
+            if (scanNum==2307){
 //                for (ThreeExpAA tag : expAaLists){
 //                    System.out.println("tags "+tag.getPtmFreeAAString());
 //                }
-                for (ThreeExpAA tag : expAaLists){
-                    if (pepTruth.contains(tag.getPtmFreeAAString()) || pepTruth.contains(new StringBuilder(tag.getPtmFreeAAString()).reverse().toString())){
-                        System.out.println("contains "+tag.getPtmFreeAAString());
-                    } else {
-                        System.out.println("wrong "+tag.getPtmFreeAAString());
-                    }
-                }
                 List<Peptide> ptmOnlySeqs = search.getPTMOnlyResult();
                 List<Peptide> ptmFreeSeqs = search.getPTMFreeResult();
                 String bestSeq = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getPTMFreePeptide();
@@ -136,6 +131,30 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
                 System.out.println(scanNum + " top1 " + bestSeq + ": "+bestScore + " truth " + pepTruth + ": "+ search.getTruthScore());
 //                System.out.println(bestSeq);
 //                System.out.println(pepTruth);
+                TreeMap<Double, Double> truthPeakMap = inferSegment.generateTheoPeak(pepTruth);
+                List<ThreeExpAA> truthTheoTags = inferSegment.inferThreeAAFromSpectrum(truthPeakMap, inferSegment.calResMass(pepTruth) + MassTool.PROTON);
+                Set<String> truthTheoTagsStr = new HashSet<>();
+
+                TreeMap<Double, Double> top1PeakMap = inferSegment.generateTheoPeak(bestSeq);
+                List<ThreeExpAA> top1TheoTags = inferSegment.inferThreeAAFromSpectrum(top1PeakMap, inferSegment.calResMass(bestSeq) + MassTool.PROTON);
+                Set<String> top1TheoTagsStr = new HashSet<>();
+
+                for (ThreeExpAA tag: truthTheoTags){
+                    truthTheoTagsStr.add(tag.getPtmFreeAAString());
+                }
+                for (ThreeExpAA tag: top1TheoTags){
+                    top1TheoTagsStr.add(tag.getPtmFreeAAString());
+                }
+
+                for (ThreeExpAA tag : expAaLists){
+                    if (truthTheoTagsStr.contains(tag.getPtmFreeAAString()) || truthTheoTagsStr.contains(new StringBuilder(tag.getPtmFreeAAString()).reverse().toString())){
+                        System.out.println("truth has "+tag.getPtmFreeAAString()+" " +tag.getTotalIntensity());
+                    }
+
+                    if (top1TheoTagsStr.contains(tag.getPtmFreeAAString()) || top1TheoTagsStr.contains(new StringBuilder(tag.getPtmFreeAAString()).reverse().toString())){
+                        System.out.println("top1 has "+tag.getPtmFreeAAString()+" " +tag.getTotalIntensity());
+                    }
+                }
                 if ((bestSeq.substring(1,bestSeq.length()-1).replace("L","I")).equals(pepTruth.replace("L","I"))){
                     System.out.println(scanNum + " yes");
 //                    System.out.println(bestSeq);

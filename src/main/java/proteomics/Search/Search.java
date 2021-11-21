@@ -16,11 +16,11 @@ public class Search {
     private String pepTruth;
     private double truthScore = -1.0;
 
-    public Search(BuildIndex buildIndex, double precursorMass, int scanNum, SparseBooleanVector scanCode, MassTool massTool, double ms1Tolerance, double leftInverseMs1Tolerance, double rightInverseMs1Tolerance, int ms1ToleranceUnit, double minPtmMass, double maxPtmMass, int localMaxMs2Charge, String pepTruth) {
+    public Search(BuildIndex buildIndex, double precursorMass, int scanNum, SparseBooleanVector scanCode,SparseBooleanVector scanCode3,MassTool massTool, double ms1Tolerance, double leftInverseMs1Tolerance, double rightInverseMs1Tolerance, int ms1ToleranceUnit, double minPtmMass, double maxPtmMass, int localMaxMs2Charge, String pepTruth) {
         this.pepTruth = pepTruth;
         PriorityQueue<ResultEntry> ptmFreeQueue = new PriorityQueue<>(rankNum * 2);
         PriorityQueue<ResultEntry> ptmOnlyQueue = new PriorityQueue<>(rankNum * 2);
-        double scanNormSquare = scanCode.norm2square();
+        double scanNormSquare = scanCode3.norm2square();
         double leftTol = ms1Tolerance;
         double rightTol = ms1Tolerance;
         if (ms1ToleranceUnit == 1) {
@@ -46,7 +46,14 @@ public class Search {
                     double score = 0;
                     double temp1 = Math.sqrt(peptide0.code.norm2square() * scanNormSquare);
                     if (temp1 > 1e-6) {
-                        score = peptide0.code.dot(scanCode) / temp1;
+                        score = peptide0.code.dot(scanCode) / 1;
+
+                        if (scanNum == 2307 && (sequence.equals("n"+pepTruth+"c") || sequence.equals("nTLGLDDALEPRc"))){
+                            System.out.print(sequence + " "+ peptide0.code.dot(scanCode) + " "+ temp1 + " ");
+                        }
+//                        if (scanNum == 2307 && (sequence.equals("n"+pepTruth+"c") || sequence.equals("nTLGLDDALEPRc"))){
+//                            System.out.print(sequence + " "+ peptide0.code.dot(scanCode) + " "+ temp1);
+//                        }
                         if (sequence.equals("n"+pepTruth+"c")){
                             truthScore = score;
 //                            if (scanNum== 12460){
