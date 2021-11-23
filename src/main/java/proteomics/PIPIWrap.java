@@ -102,39 +102,32 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
 
             // Begin search.
             Search search = new Search(buildIndex, precursorMass, scanNum, scanCode, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, minPtmMass, maxPtmMass, localMaxMs2Charge);
-            if (true){
+//            if (true){
 //                for (ThreeExpAA tag : expAaLists){
 //
 //                    System.out.println("tags "+tag.getPtmFreeAAString());
 //                }
-                List<Peptide> ptmOnlySeqs = search.getPTMOnlyResult();
-                List<Peptide> ptmFreeSeqs = search.getPTMFreeResult();
-                String bestSeq = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getPTMFreePeptide();
-                double bestScore = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getNormalizedCrossCorr();
-                if (ptmFreeSeqs.size() > 0){
-                    double ptmFreeScore = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getNormalizedCrossCorr();
+            List<Peptide> ptmOnlySeqs = search.getPTMOnlyResult();
+            List<Peptide> ptmFreeSeqs = search.getPTMFreeResult();
+            String bestSeq = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getPTMFreePeptide();
+            double bestScore = ptmOnlySeqs.get(ptmOnlySeqs.size() - 1).getNormalizedCrossCorr();
+            if (ptmFreeSeqs.size() > 0){
+                double ptmFreeScore = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getNormalizedCrossCorr();
 //                    System.out.println(ptmFreeScore +" " + bestScore);
-                    if (ptmFreeScore >= bestScore){
-                        bestSeq = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getPTMFreePeptide();
-                    }
+                if (ptmFreeScore >= bestScore){
+                    bestSeq = ptmFreeSeqs.get(ptmFreeSeqs.size() - 1).getPTMFreePeptide();
                 }
+            }
 //                    System.out.println(scanNum + " top1");
 //                    System.out.println(bestSeq);
 //                    System.out.println(pepTruth);
-                if ((bestSeq.substring(1,bestSeq.length()-1).replace("L","I")).equals(pepTruth.replace("L","I"))){
-                    System.out.println(scanNum + " top1");
+            if ((bestSeq.substring(1,bestSeq.length()-1).replace("L","I")).equals(pepTruth.replace("L","I"))){
+//                    System.out.println(scanNum + " top1");
 //                    System.out.println(bestSeq);
 //                    System.out.println(pepTruth);
-                }
-
             }
 
-
-
-
-
-
-
+//            }
 
 
             // prepare the spectrum
@@ -231,7 +224,17 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
                         otherPtmPatterns = String.join(";", tempList);
                     }
 
-                    Entry entry = new Entry(scanNum, scanId, precursorCharge, precursorMass, mgfTitle, isotopeCorrectionNum, ms1PearsonCorrelationCoefficient, buildIndex.getLabelling(), topPeptide.getPtmContainingSeq(buildIndex.returnFixModMap()), topPeptide.getTheoMass(), topPeptide.isDecoy() ? 1 : 0, topPeptide.getGlobalRank(), topPeptide.getNormalizedCrossCorr(), topPeptide.getScore(), deltaLCn, deltaCn, topPeptide.getMatchedPeakNum(), topPeptide.getIonFrac(), topPeptide.getMatchedHighestIntensityFrac(), topPeptide.getExplainedAaFrac(), otherPtmPatterns, topPeptide.getaScore());
+                    Set<String> backboneList = search.backboneList;
+                    List<Peptide> topPepsList = search.getAllPepList();
+                    String pepsInOneString = new String();
+                    String scoresInOneString = new String();
+
+                    for (Peptide pep : topPepsList){
+                        pepsInOneString += "," + pep.getPTMFreePeptide();
+                        scoresInOneString += "," + pep.getNormalizedCrossCorr();
+                    }
+                    String backboneOneString = String.join(",", backboneList);
+                    Entry entry = new Entry(scanNum, scanId, precursorCharge, precursorMass, mgfTitle, isotopeCorrectionNum, ms1PearsonCorrelationCoefficient, buildIndex.getLabelling(), topPeptide.getPtmContainingSeq(buildIndex.returnFixModMap()), topPeptide.getTheoMass(), topPeptide.isDecoy() ? 1 : 0, topPeptide.getGlobalRank(), topPeptide.getNormalizedCrossCorr(), topPeptide.getScore(), deltaLCn, deltaCn, topPeptide.getMatchedPeakNum(), topPeptide.getIonFrac(), topPeptide.getMatchedHighestIntensityFrac(), topPeptide.getExplainedAaFrac(), otherPtmPatterns, topPeptide.getaScore(), pepsInOneString.substring(1), scoresInOneString.substring(1), backboneOneString, search.topScore);
 
                     sqlResultSet.close();
                     sqlStatement.close();
@@ -272,8 +275,12 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
         final double explainedAaFrac;
         final String otherPtmPatterns; // It has 4 decimal because it is write the the result file for checking. It is not used in scoring or other purpose.
         final String aScore;
+        final String pepsInOneString;
+        final String scoresInOneString;
+        final String backboneOneString;
+        final double topScore;
 
-        Entry(int scanNum, String scanId, int precursorCharge, double precursorMass, String mgfTitle, int isotopeCorrectionNum, double ms1PearsonCorrelationCoefficient, String labelling, String peptide, double theoMass, int isDecoy, int globalRank, double normalizedCorrelationCoefficient, double score, double deltaLCn, double deltaCn, int matchedPeakNum, double ionFrac, double matchedHighestIntensityFrac, double explainedAaFrac, String otherPtmPatterns, String aScore) {
+        Entry(int scanNum, String scanId, int precursorCharge, double precursorMass, String mgfTitle, int isotopeCorrectionNum, double ms1PearsonCorrelationCoefficient, String labelling, String peptide, double theoMass, int isDecoy, int globalRank, double normalizedCorrelationCoefficient, double score, double deltaLCn, double deltaCn, int matchedPeakNum, double ionFrac, double matchedHighestIntensityFrac, double explainedAaFrac, String otherPtmPatterns, String aScore, String pepsInOneString, String scoresInOneString, String backboneOneString,  double topScore) {
             this.scanNum = scanNum;
             this.scanId = scanId;
             this.precursorCharge = precursorCharge;
@@ -296,6 +303,10 @@ public class PIPIWrap implements Callable<PIPIWrap.Entry> {
             this.explainedAaFrac = explainedAaFrac;
             this.otherPtmPatterns = otherPtmPatterns;
             this.aScore = aScore;
+            this.pepsInOneString = pepsInOneString;
+            this.scoresInOneString = scoresInOneString;
+            this.backboneOneString = backboneOneString;
+            this.topScore = topScore;
         }
     }
 }

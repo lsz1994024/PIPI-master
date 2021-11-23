@@ -9,6 +9,7 @@ import ProteomicsLibrary.PrepareSpectrum;
 import proteomics.Types.*;
 import proteomics.Index.BuildIndex;
 import proteomics.Parameter.Parameter;
+import proteomics.PepComparator.PepComparator;
 import proteomics.Spectrum.PreSpectra;
 import ProteomicsLibrary.MassTool;
 import uk.ac.ebi.pride.tools.jmzreader.JMzReader;
@@ -29,7 +30,6 @@ public class PIPI {
     private static final Logger logger = LoggerFactory.getLogger(PIPI.class);
     public static final String versionStr = "1.4.6";
     static final boolean useXcorr = true;
-
     public static final int[] debugScanNumArray = new int[]{};
 
     public static void main(String[] args) {
@@ -137,7 +137,7 @@ public class PIPI {
         while ((line = parameterReader.readLine()) != null) {
             line = line.trim();
             String[] splitRes = line.split(",");
-            pepTruth.put(Integer.valueOf(splitRes[0]), splitRes[1]);
+            pepTruth.put(Integer.valueOf(splitRes[0]), splitRes[2]);
             modTruth.put(Integer.valueOf(splitRes[0]), Boolean.valueOf(Integer.valueOf(splitRes[3]) == 1));
         }
         logger.info("Truth Loaded");
@@ -182,6 +182,9 @@ public class PIPI {
         while (sqlResultSet.next()) {
             String scanId = sqlResultSet.getString("scanId");
             int scanNum = sqlResultSet.getInt("scanNum");
+//            if (scanNum != 2052){
+//                continue;
+//            }
             int precursorCharge = sqlResultSet.getInt("precursorCharge");
             double precursorMass = sqlResultSet.getDouble("precursorMass");
             taskList.add(threadPool.submit(new PIPIWrap(buildIndex, massTool, ms1Tolerance, leftInverseMs1Tolerance, rightInverseMs1Tolerance, ms1ToleranceUnit, ms2Tolerance, inferPTM.getMinPtmMass(), inferPTM.getMaxPtmMass(), Math.min(precursorCharge > 1 ? precursorCharge - 1 : 1, 3), spectraParser, minClear, maxClear, lock, scanId, scanNum, precursorCharge, precursorMass, inferPTM, preSpectrum, sqlPath, binomial, pepTruth.get(scanNum), modTruth.get(scanNum))));
@@ -190,7 +193,7 @@ public class PIPI {
         sqlStatement.close();
 
         // check progress every minute, record results,and delete finished tasks.
-        PreparedStatement sqlPreparedStatement = sqlConnection.prepareStatement("REPLACE INTO spectraTable (scanNum, scanId, precursorCharge, precursorMass, mgfTitle, isotopeCorrectionNum, ms1PearsonCorrelationCoefficient, labelling, peptide, theoMass, isDecoy, globalRank, normalizedCorrelationCoefficient, score, deltaLCn, deltaCn, matchedPeakNum, ionFrac, matchedHighestIntensityFrac, explainedAaFrac, otherPtmPatterns, aScore) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        PreparedStatement sqlPreparedStatement = sqlConnection.prepareStatement("REPLACE INTO spectraTable (scanNum, scanId, precursorCharge, precursorMass, mgfTitle, isotopeCorrectionNum, ms1PearsonCorrelationCoefficient, labelling, peptide, theoMass, isDecoy, globalRank, normalizedCorrelationCoefficient, score, deltaLCn, deltaCn, matchedPeakNum, ionFrac, matchedHighestIntensityFrac, explainedAaFrac, otherPtmPatterns, aScore, backboneOneString, topScore, pepOneString, scoreOneString) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         sqlConnection.setAutoCommit(false);
         int lastProgress = 0;
         int resultCount = 0;
@@ -225,7 +228,15 @@ public class PIPI {
                         sqlPreparedStatement.setDouble(20, entry.explainedAaFrac);
                         sqlPreparedStatement.setString(21, entry.otherPtmPatterns);
                         sqlPreparedStatement.setString(22, entry.aScore);
+                        sqlPreparedStatement.setString(23, entry.backboneOneString);
+                        sqlPreparedStatement.setDouble(24, entry.topScore);
+                        sqlPreparedStatement.setString(25, entry.pepsInOneString);
+                        sqlPreparedStatement.setString(26, entry.scoresInOneString);
                         sqlPreparedStatement.executeUpdate();
+
+//                        if (entry.scanNum == 2052){
+//                            System.out.println("2052 ");
+//                        }
                         ++resultCount;
                     }
                     toBeDeleteTaskList.add(task);
@@ -269,8 +280,8 @@ public class PIPI {
         if (resultCount == 0) {
             throw new Exception("There is no useful results.");
         }
-
         String percolatorInputFileName = spectraPath + "." + labelling + ".input.temp";
+        PFM(percolatorInputFileName, buildIndex.getPeptide0Map(), sqlPath, buildIndex.protPepNum, pepTruth);
         writePercolator(percolatorInputFileName, buildIndex.getPeptide0Map(), sqlPath);
         Map<Integer, PercolatorEntry> percolatorResultMap = null;
 
@@ -296,6 +307,117 @@ public class PIPI {
         logger.info("Saving results...");
         writeFinalResult(percolatorResultMap, spectraPath + "." + labelling + ".pipi.csv", buildIndex.getPeptide0Map(), sqlPath);
         new WritePepXml(spectraPath + "." + labelling + ".pipi.pep.xml", spectraPath, parameterMap, massTool.getMassTable(), percolatorResultMap, buildIndex.getPeptide0Map(), buildIndex.returnFixModMap(), sqlPath);
+    }
+
+    private void PFM(String resultPath, Map<String, Peptide0> peptide0Map, String sqlPath, Map<String, Integer> protPepNum, Map<Integer, String> pepTruth) throws  SQLException {
+        System.out.println(" PFM");
+        Connection sqlConnection = DriverManager.getConnection(sqlPath);
+        Statement sqlStatement = sqlConnection.createStatement();
+        ResultSet sqlResultSet = sqlStatement.executeQuery("SELECT scanNum, precursorCharge, precursorMass, peptide, theoMass, isDecoy, globalRank, normalizedCorrelationCoefficient, score, deltaLCn, deltaCn, matchedPeakNum, ionFrac, matchedHighestIntensityFrac, explainedAaFrac, backboneOneString, topScore, pepOneString, scoreOneString FROM spectraTable");
+
+        List<PepWithScore> pepWithScoreList = new LinkedList<>();
+        while (sqlResultSet.next()) {
+            int scanNum = sqlResultSet.getInt("scanNum");
+            String backboneListString = sqlResultSet.getString("backboneOneString");
+            double topScore = sqlResultSet.getDouble("topScore");
+            if (!sqlResultSet.wasNull()) {
+                String[] backboneList = backboneListString.split(",");
+                for (String backbone : backboneList) {
+                    pepWithScoreList.add(new PepWithScore(backbone, topScore, 1.0 / backboneList.length));
+                    System.out.println(scanNum + ": "+ topScore);
+                }
+            }
+        }
+        sqlResultSet.close();
+        sqlStatement.close();
+        sqlConnection.close();
+
+        Collections.sort(pepWithScoreList);
+        int maxPepNumOneProt = 0;
+        String maxProtId = "";
+
+        for (PepWithScore pep : pepWithScoreList.subList(0, (int) Math.ceil(pepWithScoreList.size() * 0.2))) {
+            Peptide0 pep0 = peptide0Map.get(pep.pepSeq.replaceAll("[^ncA-Z]+", ""));
+            for (String proId : pep0.proteins) {
+                proId = proId.trim();
+                if (protPepNum.get(proId) > maxPepNumOneProt){
+                    maxPepNumOneProt = protPepNum.get(proId);
+                    maxProtId = proId;
+                }
+            }
+        }
+//        for (String proId : protPepNum.keySet()){
+//            if (protPepNum.get(proId) > maxPepNumOneProt){
+//                maxPepNumOneProt = protPepNum.get(proId);
+//                maxProtId = proId;
+//            }
+//        }
+        maxPepNumOneProt += 100;
+        Map<String, Double> protScoreMap = new HashMap<>();
+        for (PepWithScore pep : pepWithScoreList.subList(0, (int) Math.ceil(pepWithScoreList.size() * 0.1))) {
+            Peptide0 pep0 = peptide0Map.get(pep.pepSeq.replaceAll("[^ncA-Z]+", ""));
+            for (String proId : pep0.proteins) {
+                proId = proId.trim();
+                double countScore = countScore(pep.count, protPepNum.get(proId), maxPepNumOneProt);
+                if (protScoreMap.containsKey(proId)) {
+                    protScoreMap.put(proId, protScoreMap.get(proId) + countScore);
+                } else {
+                    protScoreMap.put(proId, countScore);
+                }
+            }
+        }
+
+        Connection sqlConnection2 = DriverManager.getConnection(sqlPath);
+        Statement sqlStatement2 = sqlConnection2.createStatement();
+        ResultSet sqlResultSet2 = sqlStatement2.executeQuery("SELECT scanNum, pepOneString, scoreOneString FROM spectraTable");
+
+        while (sqlResultSet2.next()) {
+            int scanNum = sqlResultSet2.getInt("scanNum");
+            if (scanNum == 2052){
+                System.out.println("2052");
+            }
+            String pepOneString = sqlResultSet2.getString("pepOneString");
+            String scoreOneString = sqlResultSet2.getString("scoreOneString");
+            String bestSeq = "";
+            double bestProtScore = -1d;
+            double bestScore = -1d;
+            if (!sqlResultSet2.wasNull()) {
+                String[] pepList = pepOneString.split(",");
+                String[] scoreList = scoreOneString.split(",");
+                for(int i = 0; i < pepList.length;i++){
+                    String pep = pepList[i];
+                    double score = Double.valueOf(scoreList[i]);
+                    Peptide0 pep0 = peptide0Map.get(pep.replaceAll("[^ncA-Z]+", ""));
+                    for (String prot : pep0.proteins) {
+                        prot = prot.trim();
+                        if (!protScoreMap.containsKey(prot)){
+                            continue;
+                        }
+                        double protScore = protScoreMap.get(prot);
+                        if (protScore > bestProtScore){
+                            bestSeq = pep;
+                            bestProtScore = protScore;
+                        }
+                    }
+                }
+            }
+//            System.out.println(" Here");
+            if (bestSeq.isEmpty()){
+                continue;
+            }
+            if (bestSeq.substring(1,bestSeq.length()-1).equals(pepTruth.get(scanNum))){
+                System.out.println(scanNum+" yes");
+            }
+        }
+        sqlResultSet2.close();
+        sqlStatement2.close();
+        sqlConnection2.close();
+    }
+
+    private double countScore(double count, int k, int bound){
+        double ei = Math.exp(count);
+        double elog = Math.exp( (Math.log((bound-k)/(bound+k)) + 1) * count );
+        return bound*(ei-elog)/(k*(ei+elog));
     }
 
     private static void help() {

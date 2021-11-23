@@ -2,6 +2,7 @@ package proteomics.Index;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
+import java.security.PrivateKey;
 import java.util.*;
 
 import com.google.common.collect.HashMultimap;
@@ -21,6 +22,7 @@ public class BuildIndex {
     private InferSegment inferSegment;
     private TreeMap<Double, Set<String>> massPeptideMap = new TreeMap<>();
     private Map<String, Peptide0> peptide0Map;
+    public Map<String, Integer> protPepNum = new HashMap<>();
     private final String labelling;
     private final DbTool dbTool; // this one doesn't contain contaminant proteins.
     private InferPTM inferPTM;
@@ -87,13 +89,14 @@ public class BuildIndex {
         Map<String, String> targetDecoyProteinSequenceMap = new HashMap<>();
         for (String proId : proteinPeptideMap.keySet()) {
             String proSeq = proteinPeptideMap.get(proId);
-            Set<String> peptideSet = massTool.buildPeptideSet(proSeq);
+            Set<String> peptideSet = massTool.buildPeptideSet(proSeq); //digest
 
+            int pepNumForProt = 0;
             for (String peptide : peptideSet) {
                 if (MassTool.containsNonAAAndNC(peptide)) {
                     continue;
                 }
-
+                pepNumForProt++;
                 if ((peptide.length() - 2 <= maxPeptideLength) && (peptide.length() - 2 >= minPeptideLength)) { // caution: there are n and c in the sequence
                     if (!forCheckDuplicate.contains(peptide.replace('L', 'I'))) { // don't record duplicate peptide sequences
                         // Add the sequence to the check set for duplicate check
@@ -123,6 +126,7 @@ public class BuildIndex {
                     }
                 }
             }
+            protPepNum.put(proId, pepNumForProt);
 
             targetDecoyProteinSequenceMap.put(proId, proSeq);
 
